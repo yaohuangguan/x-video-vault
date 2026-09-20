@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>X Video Vault</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <div class="mark">▶</div>
+      <div>
+        <strong>X Video Vault</strong>
+        <span>Likes collector</span>
+      </div>
+    </header>
+    <section class="settings">
+      <label>Vault 网站地址<input id="vault-url" type="url" placeholder="https://vault.example.com" /></label>
+      <label>扩展令牌<input id="token" type="password" placeholder="xvv_…" /></label>
+      <button id="save" class="secondary">保存连接</button>
+    </section>
+    <div class="divider"></div>
+    <button id="collect" class="primary">采集当前加载的视频</button>
+    <label class="toggle">
+      <span>自动采集<small>开启后向下滚动 Likes 即可</small></span>
+      <input id="auto" type="checkbox" />
+    </label>
+    <p id="status" role="status"></p>
+    <footer>只读取当前页面里已经加载的帖子</footer>
+    <script src="popup.js"></script>
+  </body>
+</html>

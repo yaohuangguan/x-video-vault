@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "X Video Vault Collector",
+  "version": "1.0.0",
+  "description": "Save video Posts already loaded in your own X Likes page to X Video Vault.",
+  "permissions": ["activeTab", "storage"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": ["https://x.com/*", "https://twitter.com/*"],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "X Video Vault",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
