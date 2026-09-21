@@ -108,6 +108,10 @@ export function XVideoPlayer({
             preload="metadata"
             poster={media.poster ?? undefined}
             className="max-h-[82dvh] w-full bg-black object-contain"
+            onError={() => {
+              setMedia(null);
+              setFallback(true);
+            }}
           >
             {media.sources.map((source) => (
               <source key={source.src} src={source.src} type={source.type} />
