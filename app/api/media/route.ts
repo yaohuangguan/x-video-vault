@@ -49,131 +49,54 @@ const FEATURES = [
 ].join(";");
 
 function getToken(id: string) {
-  return ((Number(id) / 1e15) * Math.PI)
+  const divisor = BigInt("1000000000000000");
+  const value = BigInt(id);
+  const high = Number(value / divisor);
+  const low = Number(value % divisor) / 1e15;
+  return ((high + low) * Math.PI)
     .toString(36)
     .replace(/(0+|\.)/g, "");
 }
 
-function safeHttps(value?: string | null) {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" ? url.toString() : null;
-  } catch {
-    return null;
-  }
-}
+function buildSyndicationUrls(postId: string) {
+  const make = (
+    token: string,
+    includeFeatures = false,
+  ) => {
+    try {
+    const attempts: Array<{ name: string; status: number }> = [];
+    let tweet: SyndicationTweet | null = null;
 
-function normalizeVariants(variants: SyndicationVariant[] = []) {
-  const mapped = variants
-    .map((variant) => ({
-      type: variant.content_type || variant.type || "",
-      src: safeHttps(variant.url || variant.src),
-      bitrate: variant.bitrate ?? 0,
-    }))
-    .filter(
-      (variant): variant is { type: string; src: string; bitrate: number } =>
-        Boolean(variant.src) &&
-        (variant.type === "video/mp4" ||
-          variant.type === "application/x-mpegURL"),
-    );
+    for (const candidate of buildSyndicationUrls(postId)) {
+      const response = await fetch(candidate.url.toString(), {
+        cache: "no-store",
+      });
 
-  const hls = mapped.find((variant) => variant.type === "application/x-mpegURL");
-  const mp4 = mapped
-    .filter((variant) => variant.type === "video/mp4")
-    .sort((a, b) => b.bitrate - a.bitrate)[0];
+      attempts.push({ name: candidate.name, status: response.status });
 
-  return [hls, mp4].filter(
-    (variant): variant is { type: string; src: string; bitrate: number } =>
-      Boolean(variant),
-  );
-}
+      if (!response.ok) continue;
 
-function extractFromTweet(tweet: SyndicationTweet | undefined) {
-  if (!tweet) return null;
+      const data = (await response.json().catch(() => null)) as
+        | SyndicationTweet
+        | null;
 
-  if (tweet.video?.variants?.length) {
-    const sources = normalizeVariants(tweet.video.variants);
-    if (sources.length) {
-      return {
-        poster: safeHttps(tweet.video.poster),
-        aspectRatio: tweet.video.aspectRatio ?? null,
-        sources,
-      };
-    }
-  }
+      if (!data) continue;
 
-  for (const media of tweet.mediaDetails ?? []) {
-    if (media.type !== "video" && media.type !== "animated_gif") continue;
-    const sources = normalizeVariants(media.video_info?.variants);
-    if (sources.length) {
-      return {
-        poster: safeHttps(media.media_url_https),
-        aspectRatio: media.video_info?.aspect_ratio ?? null,
-        sources,
-      };
-    }
-  }
-
-  if (tweet.quoted_tweet) {
-    return extractFromTweet(tweet.quoted_tweet as SyndicationTweet);
-  }
-
-  return null;
-}
-
-export async function GET(request: Request) {
-  if (!(await isVaultAuthenticated())) {
-    return Response.json(
-      { error: "Not authenticated" },
-      { status: 401, headers: { "Cache-Control": "no-store" } },
-    );
-  }
-
-  const postId = new URL(request.url).searchParams.get("postId") ?? "";
-  if (!/^\d{1,40}$/.test(postId)) {
-    return Response.json(
-      { error: "Invalid postId" },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
-    );
-  }
-
-  const url = new URL("https://cdn.syndication.twimg.com/tweet-result");
-  url.searchParams.set("id", postId);
-  url.searchParams.set("lang", "en");
-  url.searchParams.set("features", FEATURES);
-  url.searchParams.set("token", getToken(postId));
-
-  try {
-    const response = await fetch(url.toString(), {
-      cache: "no-store",
-    });
-
-    if (response.status === 404) {
-      return Response.json(
-        {
-          available: false,
-          reason: "upstream_404",
-          upstreamStatus: 404,
-          postId,
-        },
-        { headers: { "Cache-Control": "no-store" } },
-      );
+      tweet = data;
+      break;
     }
 
-    if (!response.ok) {
+    if (!tweet) {
       return Response.json(
         {
           available: false,
           reason: "upstream_error",
-          upstreamStatus: response.status,
           postId,
+          attempts,
         },
         { status: 502, headers: { "Cache-Control": "no-store" } },
       );
     }
-
-    const tweet = (await response.json()) as SyndicationTweet;
 
     if (tweet.__typename === "TweetTombstone") {
       return Response.json(
@@ -182,17 +105,19 @@ export async function GET(request: Request) {
           reason: "tombstone",
           typename: tweet.__typename,
           postId,
+          attempts,
         },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    if (!tweet || Object.keys(tweet).length === 0) {
+    if (Object.keys(tweet).length === 0) {
       return Response.json(
         {
           available: false,
           reason: "empty_response",
           postId,
+          attempts,
         },
         { headers: { "Cache-Control": "no-store" } },
       );
@@ -207,18 +132,24 @@ export async function GET(request: Request) {
           postId,
           typename: tweet.__typename ?? null,
           keys: Object.keys(tweet).slice(0, 30),
+          attempts,
         },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
 
     return Response.json(
-      { available: true, ...media },
+      {
+        available: true,
+        ...media,
+        source: "syndication",
+        attempts,
+      },
       { headers: { "Cache-Control": "private, max-age=300" } },
     );
   } catch {
     return Response.json(
-      { available: false, reason: "network_error" },
+      { available: false, reason: "network_error", postId },
       { status: 502, headers: { "Cache-Control": "no-store" } },
     );
   }
