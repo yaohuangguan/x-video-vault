@@ -48,6 +48,7 @@ export function XVideoPlayer({
     }
 
     setLoading(true);
+    setMedia(null);
     setFallback(false);
 
     void fetch(`/api/media?postId=${encodeURIComponent(postId)}`, {
