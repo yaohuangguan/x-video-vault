@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X Video Vault Collector",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Save video Posts already loaded in your own X Likes page to X Video Vault.",
   "permissions": [
     "activeTab",
