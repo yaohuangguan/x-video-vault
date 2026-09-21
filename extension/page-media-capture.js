@@ -7,27 +7,91 @@
   function bestMp4(variants) {
     if (!Array.isArray(variants)) return null;
 
-    return variants
-      .filter(
-        (variant) =>
-          variant &&
-          (variant.content_type === "video/mp4" ||
-            variant.type === "video/mp4") &&
-          typeof (variant.url || variant.src) === "string",
-      )
-      .map((variant) => ({
-        url: variant.url || variant.src,
-        bitrate: Number(variant.bitrate || 0),
-      }))
-      .filter((variant) => {
-        try {
-          const url = new URL(variant.url);
-          return url.protocol === "https:" && url.hostname === "video.twimg.com";
-        } catch {
-          return false;
+    return (
+      variants
+        .filter(
+          (variant) =>
+            variant &&
+            (variant.content_type === "video/mp4" ||
+              variant.type === "video/mp4") &&
+            typeof (variant.url || variant.src) === "string",
+        )
+        .map((variant) => ({
+          url: variant.url || variant.src,
+          bitrate: Number(variant.bitrate || 0),
+        }))
+        .filter((variant) => {
+          try {
+            const url = new URL(variant.url);
+            return (
+              url.protocol === "https:" &&
+              url.hostname === "video.twimg.com"
+            );
+          } catch {
+            return false;
+          }
+        })
+        .sort((a, b) => b.bitrate - a.bitrate)[0] || null
+    );
+  }
+
+  function posterFrom(node) {
+    if (!node || typeof node !== "object") return null;
+
+    return (
+      node.media_url_https ||
+      node.media_url ||
+      node.poster ||
+      node.image_url ||
+      null
+    );
+  }
+
+  function findVideoDeep(root, maxDepth = 10) {
+    if (!root || typeof root !== "object") return null;
+
+    const queue = [{ value: root, depth: 0 }];
+    const seen = new Set();
+    let visited = 0;
+
+    while (queue.length && visited < 12000) {
+      const { value, depth } = queue.shift();
+      if (!value || typeof value !== "object" || seen.has(value)) continue;
+
+      seen.add(value);
+      visited += 1;
+
+      const variants =
+        value.video_info?.variants ||
+        value.videoInfo?.variants ||
+        value.variants;
+
+      const source = bestMp4(variants);
+      if (source) {
+        return {
+          ...source,
+          previewImageUrl: posterFrom(value),
+        };
+      }
+
+      if (depth >= maxDepth) continue;
+
+      if (Array.isArray(value)) {
+        for (const child of value) {
+          if (child && typeof child === "object") {
+            queue.push({ value: child, depth: depth + 1 });
+          }
         }
-      })
-      .sort((a, b) => b.bitrate - a.bitrate)[0] || null;
+      } else {
+        for (const child of Object.values(value)) {
+          if (child && typeof child === "object") {
+            queue.push({ value: child, depth: depth + 1 });
+          }
+        }
+      }
+    }
+
+    return null;
   }
 
   function emit(postId, mediaUrl, previewImageUrl) {
@@ -49,9 +113,8 @@
   function inspectTweetLike(node) {
     if (!node || typeof node !== "object") return;
 
-    const legacy = node.legacy && typeof node.legacy === "object"
-      ? node.legacy
-      : node;
+    const legacy =
+      node.legacy && typeof node.legacy === "object" ? node.legacy : node;
 
     const postId =
       (typeof node.rest_id === "string" && node.rest_id) ||
@@ -60,45 +123,33 @@
 
     if (!postId) return;
 
-    const mediaLists = [
-      legacy.extended_entities?.media,
-      legacy.entities?.media,
-      node.extended_entities?.media,
-      node.entities?.media,
-    ];
+    // Search the whole tweet subtree, not only direct extended_entities.
+    // This covers quoted tweets, visibility wrappers and card/unified-card media.
+    const found = findVideoDeep(node);
+    if (!found) return;
 
-    for (const list of mediaLists) {
-      if (!Array.isArray(list)) continue;
-
-      for (const item of list) {
-        if (!item || (item.type !== "video" && item.type !== "animated_gif")) {
-          continue;
-        }
-
-        const best = bestMp4(item.video_info?.variants);
-        if (!best) continue;
-
-        emit(
-          postId,
-          best.url,
-          item.media_url_https || item.media_url || null,
-        );
-        return;
-      }
-    }
+    emit(
+      postId,
+      found.url,
+      found.previewImageUrl ||
+        legacy.extended_entities?.media?.[0]?.media_url_https ||
+        null,
+    );
   }
 
   function scanJson(root) {
     if (!root || typeof root !== "object") return;
 
     const stack = [root];
+    const seen = new Set();
     let visited = 0;
 
     while (stack.length && visited < 50000) {
       const node = stack.pop();
-      if (!node || typeof node !== "object") continue;
-      visited += 1;
+      if (!node || typeof node !== "object" || seen.has(node)) continue;
 
+      seen.add(node);
+      visited += 1;
       inspectTweetLike(node);
 
       if (Array.isArray(node)) {
