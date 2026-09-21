@@ -186,17 +186,36 @@ export default function Home() {
 
   const toggleFavorite = async (item: VaultItem) => {
     const next = !item.isFavorite;
-    setData((current) => ({
-      ...current,
-      items: current.items.map((entry) =>
+
+    setData((current) => {
+      let items = current.items.map((entry) =>
         entry.postId === item.postId
           ? { ...entry, isFavorite: next }
           : entry,
-      ),
-    }));
+      );
+
+      if (view === "favorites" && !next) {
+        items = items.filter((entry) => entry.postId !== item.postId);
+      } else {
+        items = [...items].sort(
+          (a, b) => Number(b.isFavorite) - Number(a.isFavorite),
+        );
+      }
+
+      return {
+        ...current,
+        items,
+        total:
+          view === "favorites" && !next
+            ? Math.max(0, current.total - 1)
+            : current.total,
+      };
+    });
+
     if (selected?.postId === item.postId) {
       setSelected({ ...selected, isFavorite: next });
     }
+
     await fetch("/api/favorites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -966,91 +985,133 @@ function DesktopViewer({
 
   return (
     <Dialog open={Boolean(selected)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-6xl overflow-hidden border-white/[0.1] bg-[#0c0f12] p-0 text-white">
+      <DialogContent
+        showCloseButton={false}
+        className="h-dvh w-screen max-w-none gap-0 overflow-hidden rounded-none border-0 bg-black p-0 text-white sm:max-w-none"
+      >
         <DialogTitle className="sr-only">Video viewer</DialogTitle>
+
         {selected && (
-          <div className="grid min-h-[min(760px,88vh)] grid-cols-[minmax(0,1.4fr)_360px]">
-            <div className="relative flex min-w-0 items-center justify-center overflow-y-auto bg-black p-6">
-              <XVideoPlayer postId={selected.postId} url={selected.originalUrl} />
+          <div className="grid h-dvh grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="relative flex min-w-0 items-center justify-center overflow-hidden bg-black">
+              <XVideoPlayer
+                postId={selected.postId}
+                url={selected.originalUrl}
+                theaterMode
+                className="h-full"
+              />
+
               <button
                 onClick={() => onStep(-1)}
-                className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur"
+                className="absolute left-5 top-1/2 z-40 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition hover:bg-black/70"
                 aria-label="Previous"
               >
-                <ChevronLeft size={21} />
+                <ChevronLeft size={25} />
               </button>
+
               <button
                 onClick={() => onStep(1)}
-                className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur"
+                className="absolute right-5 top-1/2 z-40 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition hover:bg-black/70"
                 aria-label="Next"
               >
-                <ChevronRight size={21} />
+                <ChevronRight size={25} />
               </button>
             </div>
-            <div className="flex flex-col overflow-y-auto p-7">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <Avatar
-                    src={selected.author?.profileImageUrl}
-                    label={selected.author?.username ?? "X"}
-                  />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">
-                      {selected.author?.displayName ?? "X Post"}
-                    </div>
-                    <div className="truncate text-xs text-zinc-500">
-                      @{selected.author?.username ?? "unknown"}
-                    </div>
-                  </div>
+
+            <aside className="flex h-dvh min-h-0 flex-col border-l border-white/[0.08] bg-[#0d1014]">
+              <div className="flex items-center justify-between border-b border-white/[0.07] px-6 py-5">
+                <div className="text-sm font-semibold text-white/90">
+                  Video details
                 </div>
                 <button
-                  onClick={() => onFavorite(selected)}
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${selected.isFavorite ? "border-rose-300/30 bg-rose-300/10 text-rose-300" : "border-white/[0.1] text-zinc-500"}`}
-                  aria-label="Favorite"
+                  onClick={onClose}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition hover:bg-white/[0.06] hover:text-white"
+                  aria-label="Close viewer"
                 >
-                  <Heart
-                    size={17}
-                    fill={selected.isFavorite ? "currentColor" : "none"}
-                  />
+                  <X size={19} />
                 </button>
               </div>
-              <p className="mt-6 whitespace-pre-wrap text-[15px] leading-7 text-zinc-300">
-                {selected.text || "No captured Post text."}
-              </p>
-              <div className="mt-4 text-xs text-zinc-600">
-                {formatDate(selected.createdAt)}
+
+              <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar
+                      src={selected.author?.profileImageUrl}
+                      label={selected.author?.username ?? "X"}
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">
+                        {selected.author?.displayName ?? "X Post"}
+                      </div>
+                      <div className="truncate text-xs text-zinc-500">
+                        @{selected.author?.username ?? "unknown"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => onFavorite(selected)}
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition ${
+                      selected.isFavorite
+                        ? "border-rose-300/30 bg-rose-300/10 text-rose-300"
+                        : "border-white/[0.1] text-zinc-500 hover:text-white"
+                    }`}
+                    aria-label="Favorite"
+                  >
+                    <Heart
+                      size={18}
+                      fill={selected.isFavorite ? "currentColor" : "none"}
+                    />
+                  </button>
+                </div>
+
+                <p className="mt-6 whitespace-pre-wrap text-[15px] leading-7 text-zinc-300">
+                  {selected.text || "No captured Post text."}
+                </p>
+
+                <div className="mt-4 text-xs text-zinc-600">
+                  {formatDate(selected.createdAt)}
+                </div>
+
+                <Separator className="my-6 bg-white/[0.07]" />
+
+                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-600">
+                  Local tags
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {allTags.length ? (
+                    allTags.map((tag) => {
+                      const active = selectedTagIds.has(tag.id);
+                      return (
+                        <button
+                          key={tag.id}
+                          onClick={() => {
+                            const next = new Set(selectedTagIds);
+                            if (active) next.delete(tag.id);
+                            else next.add(tag.id);
+                            void onTags([...next]);
+                          }}
+                          className={`rounded-full border px-3 py-1.5 text-xs ${
+                            active
+                              ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-200"
+                              : "border-white/[0.09] text-zinc-500 hover:text-white"
+                          }`}
+                        >
+                          {active && <Check className="mr-1 inline" size={12} />}
+                          {tag.name}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-zinc-600">
+                      在设置中创建标签后即可分组。
+                    </p>
+                  )}
+                </div>
               </div>
-              <Separator className="my-6 bg-white/[0.07]" />
-              <div className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-600">
-                Local tags
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {allTags.length ? (
-                  allTags.map((tag) => {
-                    const active = selectedTagIds.has(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        onClick={() => {
-                          const next = new Set(selectedTagIds);
-                          if (active) next.delete(tag.id);
-                          else next.add(tag.id);
-                          void onTags([...next]);
-                        }}
-                        className={`rounded-full border px-3 py-1.5 text-xs ${active ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-200" : "border-white/[0.09] text-zinc-500 hover:text-white"}`}
-                      >
-                        {active && <Check className="mr-1 inline" size={12} />}
-                        {tag.name}
-                      </button>
-                    );
-                  })
-                ) : (
-                  <p className="text-sm text-zinc-600">
-                    在设置中创建标签后即可分组。
-                  </p>
-                )}
-              </div>
-              <div className="mt-auto pt-7">
+
+              <div className="border-t border-white/[0.07] p-6">
                 <a
                   href={selected.originalUrl}
                   target="_blank"
@@ -1060,11 +1121,12 @@ function DesktopViewer({
                   <ExternalLink size={16} />
                   Open on X
                 </a>
+
                 <p className="mt-3 text-center text-[11px] text-zinc-700">
-                  ← → 切换 · Esc 关闭
+                  ← → 切换 · Esc 关闭 · 视频控件可进入系统全屏
                 </p>
               </div>
-            </div>
+            </aside>
           </div>
         )}
       </DialogContent>
