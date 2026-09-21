@@ -146,37 +146,54 @@ export async function GET(request: Request) {
 
   try {
     const response = await fetch(url.toString(), {
-      headers: {
-        Accept: "application/json",
-        "User-Agent":
-          "Mozilla/5.0 (compatible; XVideoVault/1.0; +https://github.com/yaohuangguan/x-video-vault)",
-      },
       cache: "no-store",
     });
 
     if (response.status === 404) {
       return Response.json(
-        { available: false, reason: "not_found" },
+        {
+          available: false,
+          reason: "upstream_404",
+          upstreamStatus: 404,
+          postId,
+        },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (!response.ok) {
       return Response.json(
-        { available: false, reason: "upstream_error" },
+        {
+          available: false,
+          reason: "upstream_error",
+          upstreamStatus: response.status,
+          postId,
+        },
         { status: 502, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     const tweet = (await response.json()) as SyndicationTweet;
 
-    if (
-      tweet.__typename === "TweetTombstone" ||
-      !tweet ||
-      Object.keys(tweet).length === 0
-    ) {
+    if (tweet.__typename === "TweetTombstone") {
       return Response.json(
-        { available: false, reason: "not_found" },
+        {
+          available: false,
+          reason: "tombstone",
+          typename: tweet.__typename,
+          postId,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    if (!tweet || Object.keys(tweet).length === 0) {
+      return Response.json(
+        {
+          available: false,
+          reason: "empty_response",
+          postId,
+        },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -184,7 +201,13 @@ export async function GET(request: Request) {
     const media = extractFromTweet(tweet);
     if (!media) {
       return Response.json(
-        { available: false, reason: "no_video" },
+        {
+          available: false,
+          reason: "no_video",
+          postId,
+          typename: tweet.__typename ?? null,
+          keys: Object.keys(tweet).slice(0, 30),
+        },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
