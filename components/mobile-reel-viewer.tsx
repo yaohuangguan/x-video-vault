@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import type { VaultItem } from "@/lib/ui-types";
-import { XPostEmbed } from "@/components/x-post-embed";
+import { XVideoPlayer } from "@/components/x-video-player";
 
 const formatDate = (value?: string | null) =>
   value
@@ -72,7 +72,7 @@ function ReelSlide({
       className="relative flex h-dvh snap-start snap-always flex-col overflow-hidden bg-black"
     >
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-40 pt-[max(3.75rem,env(safe-area-inset-top))]">
-        <XPostEmbed url={item.originalUrl} active={active} />
+        <XVideoPlayer postId={item.postId} url={item.originalUrl} active={active} />
       </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black via-black/90 to-transparent" />
       <div className="absolute bottom-[max(1.1rem,env(safe-area-inset-bottom))] left-4 right-20">
