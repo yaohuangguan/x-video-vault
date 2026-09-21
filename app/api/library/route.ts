@@ -103,7 +103,7 @@ export async function GET(request: Request) {
     .innerJoin(xPosts, eq(media.postId, xPosts.id))
     .leftJoin(authors, eq(xPosts.authorId, authors.id))
     .where(where)
-    .orderBy(order)
+    .orderBy(desc(xPosts.isFavorite), order)
     .limit(limit)
     .offset(offset)
     .all();
