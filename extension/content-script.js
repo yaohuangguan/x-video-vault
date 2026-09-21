@@ -1,6 +1,9 @@
 const captured = new Set();
+const capturedMedia = new Map();
+const mediaByPostId = new Map();
 let autoObserver = null;
 let autoTimer = null;
+let mediaUpdateTimer = null;
 
 function textOf(element) {
   return element?.textContent?.trim() || "";
@@ -42,6 +45,22 @@ function collectArticle(article) {
     Boolean(article.querySelector('[aria-label*="GIF" i]')) ||
     /\bGIF\b/.test(textOf(article.querySelector('[data-testid="videoPlayer"]')));
 
+  let mediaUrl = mediaByPostId.get(match[2]) || null;
+  const currentSrc = video?.currentSrc || video?.src || "";
+  if (!mediaUrl && currentSrc) {
+    try {
+      const current = new URL(currentSrc);
+      if (
+        current.protocol === "https:" &&
+        current.hostname === "video.twimg.com"
+      ) {
+        mediaUrl = current.toString();
+      }
+    } catch {
+      // Blob/MSE URLs are not portable to the Vault.
+    }
+  }
+
   return {
     url: `https://x.com/${username || "i"}/status/${match[2]}`,
     postId: match[2],
@@ -50,6 +69,7 @@ function collectArticle(article) {
     displayName,
     profileImageUrl: avatar?.src || null,
     previewImageUrl: video?.poster || null,
+    mediaUrl,
     createdAt: time?.getAttribute("datetime") || null,
     mediaType: isGif ? "animated_gif" : "video",
   };
@@ -59,7 +79,13 @@ function collectVisible() {
   const found = [];
   for (const article of document.querySelectorAll('article[data-testid="tweet"]')) {
     const post = collectArticle(article);
-    if (!post || captured.has(post.postId)) continue;
+    if (!post) continue;
+
+    if (captured.has(post.postId)) {
+      const lastMediaUrl = capturedMedia.get(post.postId) || null;
+      if (!post.mediaUrl || lastMediaUrl === post.mediaUrl) continue;
+    }
+
     found.push(post);
   }
   return found;
@@ -97,7 +123,10 @@ async function sendNewPosts() {
     posts,
   });
   if (!response?.ok) throw new Error(response?.error || "导入失败");
-  for (const post of posts) captured.add(post.postId);
+  for (const post of posts) {
+    captured.add(post.postId);
+    if (post.mediaUrl) capturedMedia.set(post.postId, post.mediaUrl);
+  }
   return response.result;
 }
 
@@ -141,9 +170,47 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false;
   }
   if (message?.type === "mark-captured") {
-    for (const postId of message.postIds || []) captured.add(postId);
+    for (const postId of message.postIds || []) {
+      captured.add(postId);
+      const mediaUrl = mediaByPostId.get(postId);
+      if (mediaUrl) capturedMedia.set(postId, mediaUrl);
+    }
     sendResponse({ ok: true });
     return false;
   }
   return false;
+});
+
+
+window.addEventListener("message", (event) => {
+  if (
+    event.source !== window ||
+    event.origin !== window.location.origin ||
+    event.data?.type !== "xvv-media-source"
+  ) {
+    return;
+  }
+
+  const postId = String(event.data.postId || "");
+  const mediaUrl = String(event.data.mediaUrl || "");
+
+  if (!/^\d{1,40}$/.test(postId)) return;
+
+  try {
+    const url = new URL(mediaUrl);
+    if (url.protocol !== "https:" || url.hostname !== "video.twimg.com") return;
+  } catch {
+    return;
+  }
+
+  mediaByPostId.set(postId, mediaUrl);
+
+  if (!captured.has(postId) && !autoObserver) return;
+
+  window.clearTimeout(mediaUpdateTimer);
+  mediaUpdateTimer = window.setTimeout(() => {
+    void sendNewPosts().catch((error) =>
+      toast(error.message || "媒体地址更新失败", true),
+    );
+  }, 350);
 });
