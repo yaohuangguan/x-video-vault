@@ -40,7 +40,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { MobileReelViewer } from "@/components/mobile-reel-viewer";
-import { XPostEmbed } from "@/components/x-post-embed";
+import { XVideoPlayer } from "@/components/x-video-player";
 import type {
   AuthState,
   LibraryResponse,
@@ -971,7 +971,7 @@ function DesktopViewer({
         {selected && (
           <div className="grid min-h-[min(760px,88vh)] grid-cols-[minmax(0,1.4fr)_360px]">
             <div className="relative flex min-w-0 items-center justify-center overflow-y-auto bg-black p-6">
-              <XPostEmbed url={selected.originalUrl} />
+              <XVideoPlayer postId={selected.postId} url={selected.originalUrl} />
               <button
                 onClick={() => onStep(-1)}
                 className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur"
