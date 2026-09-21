@@ -34,6 +34,7 @@ export function XVideoPlayer({
   active = true,
   preload = false,
   reelMode = false,
+  theaterMode = false,
   showViewOnX = true,
   className = "",
 }: {
@@ -42,6 +43,7 @@ export function XVideoPlayer({
   active?: boolean;
   preload?: boolean;
   reelMode?: boolean;
+  theaterMode?: boolean;
   showViewOnX?: boolean;
   className?: string;
 }) {
@@ -187,7 +189,7 @@ export function XVideoPlayer({
   return (
     <div
       className={`relative w-full overflow-hidden bg-black ${
-        reelMode ? "h-full min-h-0" : "min-h-80"
+        reelMode || theaterMode ? "h-full min-h-0" : "min-h-80"
       } ${className}`}
     >
       {loading && (
@@ -199,7 +201,7 @@ export function XVideoPlayer({
       {media ? (
         <div
           className={`relative flex w-full items-center justify-center overflow-hidden bg-black ${
-            reelMode ? "h-full" : "min-h-80"
+            reelMode || theaterMode ? "h-full" : "min-h-80"
           }`}
         >
           {reelMode && media.poster && (
@@ -235,7 +237,9 @@ export function XVideoPlayer({
               setFallback(true);
             }}
             className={`relative z-10 w-full bg-black object-contain ${
-              reelMode ? "h-full max-h-none" : "max-h-[90dvh]"
+              reelMode || theaterMode
+                ? "h-full max-h-none"
+                : "max-h-[90dvh]"
             }`}
           >
             {media.sources.map((source) => (
