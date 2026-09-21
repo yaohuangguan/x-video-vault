@@ -60,7 +60,10 @@ async function collect() {
     type: "mark-captured",
     postIds: scan.posts.map((post) => post.postId),
   });
-  show(`完成：新增 ${result.newlyAdded}，更新 ${result.updated}`);
+  const withMedia = scan.posts.filter((post) => Boolean(post.mediaUrl)).length;
+  show(
+    `完成：新增 ${result.newlyAdded}，更新 ${result.updated} · ${withMedia}/${scan.posts.length} 条带视频源`,
+  );
 }
 
 saveButton.addEventListener("click", async () => {
