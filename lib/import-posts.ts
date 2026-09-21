@@ -10,6 +10,7 @@ export type ImportedXPost = {
   displayName?: string;
   profileImageUrl?: string | null;
   previewImageUrl?: string | null;
+  mediaUrl?: string | null;
   createdAt?: string | null;
   mediaType?: "video" | "animated_gif";
 };
@@ -22,6 +23,16 @@ function safeHttpsUrl(value?: string | null) {
   try {
     const url = new URL(value);
     return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeVideoUrl(value?: string | null) {
+  const url = safeHttpsUrl(value);
+  if (!url) return null;
+  try {
+    return new URL(url).hostname === "video.twimg.com" ? url : null;
   } catch {
     return null;
   }
@@ -165,6 +176,10 @@ export async function importXPosts(
       previewImageUrl:
         safeHttpsUrl(raw.previewImageUrl) ??
         existingMedia?.previewImageUrl ??
+        null,
+      sourceUrl:
+        safeVideoUrl(raw.mediaUrl) ??
+        existingMedia?.sourceUrl ??
         null,
       unavailable: false,
       updatedAt: now,
