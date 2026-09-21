@@ -25,72 +25,167 @@ type SyndicationTweet = {
     variants?: SyndicationVariant[];
   };
   mediaDetails?: SyndicationMedia[];
-  quoted_tweet?: {
-    video?: SyndicationTweet["video"];
-    mediaDetails?: SyndicationMedia[];
-  };
+  quoted_tweet?: SyndicationTweet;
+  parent?: SyndicationTweet;
 };
 
-const FEATURES = [
-  "tfw_timeline_list:",
-  "tfw_follower_count_sunset:true",
-  "tfw_tweet_edit_backend:on",
-  "tfw_refsrc_session:on",
-  "tfw_fosnr_soft_interventions_enabled:on",
-  "tfw_show_birdwatch_pivots_enabled:on",
-  "tfw_show_business_verified_badge:on",
-  "tfw_duplicate_scribes_to_settings:on",
-  "tfw_use_profile_image_shape_enabled:on",
-  "tfw_show_blue_verified_badge:on",
-  "tfw_legacy_timeline_sunset:true",
-  "tfw_show_gov_verified_badge:on",
-  "tfw_show_business_affiliate_badge:on",
-  "tfw_tweet_edit_frontend:on",
-].join(";");
+type MediaSource = {
+  type: "video/mp4";
+  src: string;
+  bitrate: number;
+};
 
-function getToken(id: string) {
-  const divisor = BigInt("1000000000000000");
-  const value = BigInt(id);
-  const high = Number(value / divisor);
-  const low = Number(value % divisor) / 1e15;
-  return ((high + low) * Math.PI)
-    .toString(36)
-    .replace(/(0+|\.)/g, "");
+const SYNDICATION_URL = "https://cdn.syndication.twimg.com/tweet-result";
+
+function safeHttpsUrl(value?: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }
 
-function buildSyndicationUrls(postId: string) {
-  const make = (
-    token: string,
-    includeFeatures = false,
-  ) => {
-    try {
-    const attempts: Array<{ name: string; status: number }> = [];
-    let tweet: SyndicationTweet | null = null;
+function pickBestMp4(variants: SyndicationVariant[] = []): MediaSource | null {
+  const candidates = variants
+    .map((variant) => ({
+      type: variant.content_type || variant.type || "",
+      src: safeHttpsUrl(variant.url || variant.src),
+      bitrate: Number(variant.bitrate || 0),
+    }))
+    .filter(
+      (variant): variant is { type: string; src: string; bitrate: number } =>
+        variant.type === "video/mp4" && Boolean(variant.src),
+    )
+    .sort((a, b) => b.bitrate - a.bitrate);
 
-    for (const candidate of buildSyndicationUrls(postId)) {
-      const response = await fetch(candidate.url.toString(), {
-        cache: "no-store",
-      });
+  const best = candidates[0];
+  if (!best) return null;
 
-      attempts.push({ name: candidate.name, status: response.status });
+  return {
+    type: "video/mp4",
+    src: best.src,
+    bitrate: best.bitrate,
+  };
+}
 
-      if (!response.ok) continue;
-
-      const data = (await response.json().catch(() => null)) as
-        | SyndicationTweet
-        | null;
-
-      if (!data) continue;
-
-      tweet = data;
-      break;
+function extractVideo(tweet: SyndicationTweet | null | undefined):
+  | {
+      poster: string | null;
+      aspectRatio: number[] | null;
+      source: MediaSource;
     }
+  | null {
+  if (!tweet) return null;
+
+  const rootSource = pickBestMp4(tweet.video?.variants);
+  if (rootSource) {
+    return {
+      poster: safeHttpsUrl(tweet.video?.poster),
+      aspectRatio: tweet.video?.aspectRatio ?? null,
+      source: rootSource,
+    };
+  }
+
+  for (const item of tweet.mediaDetails ?? []) {
+    if (item.type !== "video" && item.type !== "animated_gif") continue;
+
+    const source = pickBestMp4(item.video_info?.variants);
+    if (!source) continue;
+
+    return {
+      poster: safeHttpsUrl(item.media_url_https),
+      aspectRatio: item.video_info?.aspect_ratio ?? null,
+      source,
+    };
+  }
+
+  return (
+    extractVideo(tweet.quoted_tweet) ??
+    extractVideo(tweet.parent)
+  );
+}
+
+function syndicationRequestUrls(postId: string) {
+  const tokenZero = new URL(SYNDICATION_URL);
+  tokenZero.searchParams.set("id", postId);
+  tokenZero.searchParams.set("token", "0");
+
+  const tokenZeroWithLang = new URL(tokenZero);
+  tokenZeroWithLang.searchParams.set("lang", "en");
+
+  return [
+    { name: "token_zero", url: tokenZero },
+    { name: "token_zero_lang", url: tokenZeroWithLang },
+  ];
+}
+
+async function fetchSyndication(postId: string) {
+  const attempts: Array<{
+    name: string;
+    status: number;
+    contentType: string | null;
+  }> = [];
+
+  for (const candidate of syndicationRequestUrls(postId)) {
+    const response = await fetch(candidate.url.toString(), {
+      headers: {
+        Accept: "application/json",
+        Referer: "https://platform.twitter.com/",
+        "User-Agent": "Mozilla/5.0",
+      },
+      cache: "no-store",
+    });
+
+    attempts.push({
+      name: candidate.name,
+      status: response.status,
+      contentType: response.headers.get("content-type"),
+    });
+
+    if (!response.ok) continue;
+
+    const text = await response.text();
+    if (!text.trim()) continue;
+
+    let data: SyndicationTweet;
+    try {
+      data = JSON.parse(text) as SyndicationTweet;
+    } catch {
+      continue;
+    }
+
+    return { data, attempts };
+  }
+
+  return { data: null, attempts };
+}
+
+export async function GET(request: Request) {
+  if (!(await isVaultAuthenticated())) {
+    return Response.json(
+      { error: "Not authenticated" },
+      { status: 401, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  const postId = new URL(request.url).searchParams.get("postId") ?? "";
+  if (!/^\d{1,40}$/.test(postId)) {
+    return Response.json(
+      { error: "Invalid postId" },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  try {
+    const { data: tweet, attempts } = await fetchSyndication(postId);
 
     if (!tweet) {
       return Response.json(
         {
           available: false,
-          reason: "upstream_error",
+          reason: "syndication_unavailable",
           postId,
           attempts,
         },
@@ -103,7 +198,6 @@ function buildSyndicationUrls(postId: string) {
         {
           available: false,
           reason: "tombstone",
-          typename: tweet.__typename,
           postId,
           attempts,
         },
@@ -123,7 +217,7 @@ function buildSyndicationUrls(postId: string) {
       );
     }
 
-    const media = extractFromTweet(tweet);
+    const media = extractVideo(tweet);
     if (!media) {
       return Response.json(
         {
@@ -138,18 +232,34 @@ function buildSyndicationUrls(postId: string) {
       );
     }
 
+    const proxyUrl =
+      `/api/media/proxy?url=${encodeURIComponent(media.source.src)}`;
+
     return Response.json(
       {
         available: true,
-        ...media,
+        poster: media.poster,
+        aspectRatio: media.aspectRatio,
+        sources: [
+          {
+            type: media.source.type,
+            src: proxyUrl,
+            bitrate: media.source.bitrate,
+          },
+        ],
         source: "syndication",
         attempts,
       },
       { headers: { "Cache-Control": "private, max-age=300" } },
     );
-  } catch {
+  } catch (error) {
     return Response.json(
-      { available: false, reason: "network_error", postId },
+      {
+        available: false,
+        reason: "network_error",
+        postId,
+        detail: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 502, headers: { "Cache-Control": "no-store" } },
     );
   }
