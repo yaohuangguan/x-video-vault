@@ -99,7 +99,7 @@ function ReelSlide({
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/55 to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black/95 via-black/55 to-transparent" />
 
-      <div className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-4 right-20 z-30">
+      <div className="pointer-events-none absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-4 right-20 z-30">
         <div className="mb-3 flex items-center gap-2.5">
           <Avatar
             src={item.author?.profileImageUrl}
@@ -177,6 +177,11 @@ export function MobileReelViewer({
   onViewed: (item: VaultItem) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
+  const order = useRef(items.map((item) => item.postId));
+
+  const orderedItems = order.current
+    .map((postId) => items.find((item) => item.postId === postId))
+    .filter((item): item is VaultItem => Boolean(item));
 
   useEffect(() => {
     const target = scroller.current?.querySelector<HTMLElement>(
@@ -208,7 +213,7 @@ export function MobileReelViewer({
         ref={scroller}
         className="h-dvh snap-y snap-mandatory overflow-y-auto overscroll-contain scrollbar-none"
       >
-        {items.map((item) => (
+        {orderedItems.map((item) => (
           <ReelSlide
             key={item.postId}
             item={item}
