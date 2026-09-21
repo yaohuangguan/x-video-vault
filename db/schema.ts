@@ -69,6 +69,7 @@ export const media = sqliteTable(
       .references(() => xPosts.id, { onDelete: "cascade" }),
     type: text("type").notNull(),
     previewImageUrl: text("preview_image_url"),
+    sourceUrl: text("source_url"),
     unavailable: integer("unavailable", { mode: "boolean" })
       .notNull()
       .default(false),
