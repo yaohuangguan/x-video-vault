@@ -28,3 +28,44 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
     width: 100% !important;
   }
 }
+
+
+.reel-progress {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+}
+
+.reel-progress::-webkit-slider-runnable-track {
+  height: 2px;
+  background: rgba(255,255,255,.28);
+}
+
+.reel-progress::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 0;
+  height: 0;
+}
+
+.reel-progress::-moz-range-track {
+  height: 2px;
+  background: rgba(255,255,255,.28);
+}
+
+.reel-progress::-moz-range-progress {
+  height: 2px;
+  background: rgba(255,255,255,.95);
+}
+
+.reel-progress::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  border: 0;
+}
+
+.reel-progress:focus {
+  outline: none;
+}
