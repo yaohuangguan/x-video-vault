@@ -137,6 +137,19 @@ npx wrangler deploy --config wrangler.jsonc
 6. 打开 Wrangler 输出的 HTTPS 地址，立即创建 Vault 密码。之后可以在 Cloudflare
 控制台给 Worker 绑定自己的域名。
 
+### 从旧版本升级媒体采集
+
+如果数据库已经初始化过，不要重新执行 `0000`。升级到支持登录态视频源采集的版本后，
+只执行一次：
+
+```bash
+npx wrangler d1 execute DB --remote --config wrangler.jsonc --file drizzle/0001_media_source_url.sql
+```
+
+然后重新部署 Worker，并在 `chrome://extensions` 中点击扩展的“重新加载”，再刷新 X
+Likes 页面。扩展 1.1 会从你已登录的 X 页面已经加载的 GraphQL 数据中提取
+`video.twimg.com` MP4 地址；它不会上传 X Cookie 或密码。
+
 Cloudflare 官方 D1 文档：
 
 - https://developers.cloudflare.com/d1/get-started/
