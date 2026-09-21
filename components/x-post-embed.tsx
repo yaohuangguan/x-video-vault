@@ -1,17 +1,39 @@
 "use client";
 
 import Script from "next/script";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ExternalLink, LoaderCircle } from "lucide-react";
+
+type TwitterWidgets = {
+  createTweet: (
+    postId: string,
+    element: HTMLElement,
+    options?: {
+      theme?: "light" | "dark";
+      dnt?: boolean;
+      conversation?: "none" | "all";
+      align?: "left" | "center" | "right";
+    },
+  ) => Promise<HTMLElement | null | undefined>;
+};
 
 declare global {
   interface Window {
     twttr?: {
-      widgets?: {
-        load: (element?: HTMLElement) => Promise<void> | void;
-      };
+      widgets?: TwitterWidgets;
     };
   }
+}
+
+const getPostId = (url: string) => url.match(/\/status\/(\d+)/i)?.[1] ?? null;
+
+async function waitForTwitterWidgets() {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const widgets = window.twttr?.widgets;
+    if (widgets?.createTweet) return widgets;
+    await new Promise((resolve) => window.setTimeout(resolve, 125));
+  }
+  return null;
 }
 
 export function XPostEmbed({
@@ -24,30 +46,67 @@ export function XPostEmbed({
   className?: string;
 }) {
   const container = useRef<HTMLDivElement>(null);
+  const generation = useRef(0);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const renderEmbed = useCallback(async () => {
-    if (!active || !container.current || !window.twttr?.widgets) return;
-    try {
-      await window.twttr.widgets.load(container.current);
-      setLoaded(true);
-    } catch {
-      setFailed(true);
-    }
-  }, [active]);
-
   useEffect(() => {
-    if (!active) {
-      setLoaded(false);
+    const currentGeneration = ++generation.current;
+    const host = container.current;
+
+    setLoaded(false);
+    setFailed(false);
+
+    if (host) host.replaceChildren();
+    if (!active || !host) return;
+
+    const postId = getPostId(url);
+    if (!postId) {
+      setFailed(true);
       return;
     }
-    const timeout = window.setTimeout(() => {
-      if (!loaded) setFailed(true);
-    }, 12_000);
-    void renderEmbed();
-    return () => window.clearTimeout(timeout);
-  }, [active, loaded, renderEmbed, url]);
+
+    const render = async () => {
+      const widgets = await waitForTwitterWidgets();
+      if (currentGeneration !== generation.current) return;
+
+      if (!widgets) {
+        setFailed(true);
+        return;
+      }
+
+      try {
+        const element = await Promise.race([
+          widgets.createTweet(postId, host, {
+            theme: "dark",
+            dnt: true,
+            conversation: "none",
+            align: "center",
+          }),
+          new Promise<null>((resolve) =>
+            window.setTimeout(() => resolve(null), 12_000),
+          ),
+        ]);
+
+        if (currentGeneration !== generation.current) return;
+
+        if (element || host.firstElementChild) {
+          setLoaded(true);
+        } else {
+          setFailed(true);
+        }
+      } catch {
+        if (currentGeneration === generation.current) setFailed(true);
+      }
+    };
+
+    void render();
+
+    return () => {
+      generation.current += 1;
+      host.replaceChildren();
+    };
+  }, [active, url]);
 
   if (!active) {
     return (
@@ -64,8 +123,7 @@ export function XPostEmbed({
       <Script
         id="x-widgets"
         src="https://platform.twitter.com/widgets.js"
-        strategy="lazyOnload"
-        onLoad={() => void renderEmbed()}
+        strategy="afterInteractive"
         onError={() => setFailed(true)}
       />
       {!loaded && !failed && (
@@ -73,17 +131,10 @@ export function XPostEmbed({
           <LoaderCircle className="animate-spin text-zinc-600" size={24} />
         </div>
       )}
-      <div ref={container} className="x-embed-frame mx-auto w-full max-w-[550px]">
-        <blockquote
-          className="twitter-tweet"
-          data-theme="dark"
-          data-dnt="true"
-          data-conversation="none"
-          data-align="center"
-        >
-          <a href={url}>View this Post on X</a>
-        </blockquote>
-      </div>
+      <div
+        ref={container}
+        className="x-embed-frame mx-auto w-full max-w-[550px]"
+      />
       {failed && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl bg-[#0c0f12] px-6 text-center">
           <p className="text-sm text-zinc-400">
