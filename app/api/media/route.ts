@@ -1,3 +1,6 @@
+import { and, eq } from "drizzle-orm";
+import { getDb } from "@/db";
+import { media as mediaTable, xPosts } from "@/db/schema";
 import { isVaultAuthenticated } from "@/lib/vault-auth";
 
 type SyndicationVariant = {
@@ -179,6 +182,40 @@ export async function GET(request: Request) {
   }
 
   try {
+    const stored = (
+      await getDb()
+        .select({
+          sourceUrl: mediaTable.sourceUrl,
+          previewImageUrl: mediaTable.previewImageUrl,
+        })
+        .from(mediaTable)
+        .innerJoin(xPosts, eq(mediaTable.postId, xPosts.id))
+        .where(and(eq(xPosts.postId, postId), eq(mediaTable.unavailable, false)))
+        .limit(1)
+        .all()
+    )[0];
+
+    const storedSource = safeHttpsUrl(stored?.sourceUrl);
+    if (storedSource && new URL(storedSource).hostname === "video.twimg.com") {
+      return Response.json(
+        {
+          available: true,
+          poster: safeHttpsUrl(stored?.previewImageUrl),
+          aspectRatio: null,
+          sources: [
+            {
+              type: "video/mp4",
+              src: `/api/media/proxy?url=${encodeURIComponent(storedSource)}`,
+              bitrate: 0,
+            },
+          ],
+          source: "extension",
+          attempts: [],
+        },
+        { headers: { "Cache-Control": "private, max-age=300" } },
+      );
+    }
+
     const { data: tweet, attempts } = await fetchSyndication(postId);
 
     if (!tweet) {
