@@ -51,7 +51,7 @@ async function derivePassword(password: string, salt: Uint8Array, iterations: nu
 }
 
 export async function hashPassword(password: string) {
-  const iterations = 210_000;
+  const iterations = 100_000;
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const hash = await derivePassword(password, salt, iterations);
   return `${iterations}.${bytesToBase64(salt)}.${bytesToBase64(hash)}`;
