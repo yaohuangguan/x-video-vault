@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   ExternalLink,
   LoaderCircle,
   Play,
+  RotateCcw,
+  RotateCw,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -48,6 +56,9 @@ export function XVideoPlayer({
   className?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const singleTapTimer = useRef<number | null>(null);
+  const lastTap = useRef({ time: 0, x: 0 });
+  const skipTimer = useRef<number | null>(null);
   const [media, setMedia] = useState<NativeMedia | null>(null);
   const [fallback, setFallback] = useState(false);
   const [loading, setLoading] = useState(active || preload);
@@ -55,6 +66,7 @@ export function XVideoPlayer({
   const [muted, setMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [skipFeedback, setSkipFeedback] = useState<number | null>(null);
 
   const shouldLoad = active || preload;
   const progress = useMemo(
@@ -156,6 +168,55 @@ export function XVideoPlayer({
     }
   };
 
+  const skipBy = (seconds: number) => {
+    const video = videoRef.current;
+    if (!video || !Number.isFinite(video.duration)) return;
+
+    const next = Math.max(
+      0,
+      Math.min(video.duration, video.currentTime + seconds),
+    );
+    video.currentTime = next;
+    setCurrentTime(next);
+    setSkipFeedback(seconds);
+
+    if (skipTimer.current) window.clearTimeout(skipTimer.current);
+    skipTimer.current = window.setTimeout(() => {
+      setSkipFeedback(null);
+      skipTimer.current = null;
+    }, 650);
+  };
+
+  const handleReelPointerUp = (
+    event: ReactPointerEvent<HTMLVideoElement>,
+  ) => {
+    if (!reelMode) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const now = Date.now();
+    const previous = lastTap.current;
+    const isDoubleTap =
+      now - previous.time < 280 && Math.abs(x - previous.x) < 96;
+
+    if (isDoubleTap) {
+      if (singleTapTimer.current) {
+        window.clearTimeout(singleTapTimer.current);
+        singleTapTimer.current = null;
+      }
+      lastTap.current = { time: 0, x: 0 };
+      skipBy(x < rect.width / 2 ? -10 : 10);
+      return;
+    }
+
+    lastTap.current = { time: now, x };
+    if (singleTapTimer.current) window.clearTimeout(singleTapTimer.current);
+    singleTapTimer.current = window.setTimeout(() => {
+      togglePlayback();
+      singleTapTimer.current = null;
+    }, 260);
+  };
+
   const toggleMuted = () => {
     const video = videoRef.current;
     const next = !muted;
@@ -220,7 +281,7 @@ export function XVideoPlayer({
             poster={media.poster ?? undefined}
             loop={reelMode}
             muted={muted}
-            onClick={togglePlayback}
+            onPointerUp={reelMode ? handleReelPointerUp : undefined}
             onLoadedMetadata={(event) => {
               setDuration(event.currentTarget.duration || 0);
               if (reelMode && active) {
@@ -246,6 +307,49 @@ export function XVideoPlayer({
               <source key={source.src} src={source.src} type={source.type} />
             ))}
           </video>
+
+          {(reelMode || theaterMode) && (
+            <>
+              <button
+                type="button"
+                onClick={() => skipBy(-10)}
+                className={`absolute left-[18%] top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white/90 backdrop-blur-md transition active:scale-95 ${
+                  reelMode ? "opacity-75" : "opacity-0 hover:opacity-100"
+                }`}
+                aria-label="Rewind 10 seconds"
+              >
+                <span className="relative">
+                  <RotateCcw size={24} />
+                  <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold">
+                    10
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => skipBy(10)}
+                className={`absolute right-[18%] top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white/90 backdrop-blur-md transition active:scale-95 ${
+                  reelMode ? "opacity-75" : "opacity-0 hover:opacity-100"
+                }`}
+                aria-label="Forward 10 seconds"
+              >
+                <span className="relative">
+                  <RotateCw size={24} />
+                  <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold">
+                    10
+                  </span>
+                </span>
+              </button>
+
+              {skipFeedback !== null && (
+                <div className="pointer-events-none absolute left-1/2 top-[42%] z-40 -translate-x-1/2 rounded-full bg-black/65 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md">
+                  {skipFeedback > 0 ? "+" : ""}
+                  {skipFeedback}s
+                </div>
+              )}
+            </>
+          )}
 
           {reelMode && paused && (
             <button
