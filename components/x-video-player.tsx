@@ -58,6 +58,7 @@ export function XVideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const singleTapTimer = useRef<number | null>(null);
   const lastTap = useRef({ time: 0, x: 0 });
+  const pointerStart = useRef({ x: 0, y: 0 });
   const skipTimer = useRef<number | null>(null);
   const [media, setMedia] = useState<NativeMedia | null>(null);
   const [fallback, setFallback] = useState(false);
@@ -151,9 +152,21 @@ export function XVideoPlayer({
 
   useEffect(() => {
     if (active) return;
+    if (singleTapTimer.current) {
+      window.clearTimeout(singleTapTimer.current);
+      singleTapTimer.current = null;
+    }
     videoRef.current?.pause();
     setPaused(true);
   }, [active]);
+
+  useEffect(
+    () => () => {
+      if (singleTapTimer.current) window.clearTimeout(singleTapTimer.current);
+      if (skipTimer.current) window.clearTimeout(skipTimer.current);
+    },
+    [],
+  );
 
   const togglePlayback = () => {
     if (!reelMode) return;
@@ -187,10 +200,20 @@ export function XVideoPlayer({
     }, 650);
   };
 
+  const handleReelPointerDown = (
+    event: ReactPointerEvent<HTMLVideoElement>,
+  ) => {
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+  };
+
   const handleReelPointerUp = (
     event: ReactPointerEvent<HTMLVideoElement>,
   ) => {
     if (!reelMode) return;
+
+    const movedX = Math.abs(event.clientX - pointerStart.current.x);
+    const movedY = Math.abs(event.clientY - pointerStart.current.y);
+    if (movedX > 18 || movedY > 18) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -281,6 +304,7 @@ export function XVideoPlayer({
             poster={media.poster ?? undefined}
             loop={reelMode}
             muted={muted}
+            onPointerDown={reelMode ? handleReelPointerDown : undefined}
             onPointerUp={reelMode ? handleReelPointerUp : undefined}
             onLoadedMetadata={(event) => {
               setDuration(event.currentTarget.duration || 0);
