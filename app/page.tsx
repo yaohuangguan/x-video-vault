@@ -254,14 +254,23 @@ export default function Home() {
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (!selected || !desktop) return;
-      if (event.key === "Escape") setSelected(null);
-      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+
+      if (event.key === "Escape") {
+        setSelected(null);
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
         stepSelected(1);
       }
-      if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
         stepSelected(-1);
       }
     };
+
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [desktop, selected, stepSelected]);
@@ -1123,7 +1132,7 @@ function DesktopViewer({
                 </a>
 
                 <p className="mt-3 text-center text-[11px] text-zinc-700">
-                  ← → 切换 · Esc 关闭 · 视频控件可进入系统全屏
+                  ← → ±10秒 · ↑ ↓ 切换视频 · Esc 关闭
                 </p>
               </div>
             </aside>
