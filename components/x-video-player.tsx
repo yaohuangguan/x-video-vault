@@ -11,8 +11,6 @@ import {
   ExternalLink,
   LoaderCircle,
   Play,
-  RotateCcw,
-  RotateCw,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -200,16 +198,16 @@ export function XVideoPlayer({
     }, 650);
   };
 
-  const handleReelPointerDown = (
+  const handleSeekPointerDown = (
     event: ReactPointerEvent<HTMLVideoElement>,
   ) => {
     pointerStart.current = { x: event.clientX, y: event.clientY };
   };
 
-  const handleReelPointerUp = (
+  const handleSeekPointerUp = (
     event: ReactPointerEvent<HTMLVideoElement>,
   ) => {
-    if (!reelMode) return;
+    if (!reelMode && !theaterMode) return;
 
     const movedX = Math.abs(event.clientX - pointerStart.current.x);
     const movedY = Math.abs(event.clientY - pointerStart.current.y);
@@ -234,10 +232,12 @@ export function XVideoPlayer({
 
     lastTap.current = { time: now, x };
     if (singleTapTimer.current) window.clearTimeout(singleTapTimer.current);
-    singleTapTimer.current = window.setTimeout(() => {
-      togglePlayback();
-      singleTapTimer.current = null;
-    }, 260);
+    if (reelMode) {
+      singleTapTimer.current = window.setTimeout(() => {
+        togglePlayback();
+        singleTapTimer.current = null;
+      }, 260);
+    }
   };
 
   const toggleMuted = () => {
@@ -304,8 +304,12 @@ export function XVideoPlayer({
             poster={media.poster ?? undefined}
             loop={reelMode}
             muted={muted}
-            onPointerDown={reelMode ? handleReelPointerDown : undefined}
-            onPointerUp={reelMode ? handleReelPointerUp : undefined}
+            onPointerDown={
+              reelMode || theaterMode ? handleSeekPointerDown : undefined
+            }
+            onPointerUp={
+              reelMode || theaterMode ? handleSeekPointerUp : undefined
+            }
             onLoadedMetadata={(event) => {
               setDuration(event.currentTarget.duration || 0);
               if (reelMode && active) {
@@ -332,47 +336,11 @@ export function XVideoPlayer({
             ))}
           </video>
 
-          {(reelMode || theaterMode) && (
-            <>
-              <button
-                type="button"
-                onClick={() => skipBy(-10)}
-                className={`absolute left-[18%] top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white/90 backdrop-blur-md transition active:scale-95 ${
-                  reelMode ? "opacity-75" : "opacity-35 hover:opacity-100"
-                }`}
-                aria-label="Rewind 10 seconds"
-              >
-                <span className="relative">
-                  <RotateCcw size={24} />
-                  <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold">
-                    10
-                  </span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => skipBy(10)}
-                className={`absolute right-[18%] top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white/90 backdrop-blur-md transition active:scale-95 ${
-                  reelMode ? "opacity-75" : "opacity-35 hover:opacity-100"
-                }`}
-                aria-label="Forward 10 seconds"
-              >
-                <span className="relative">
-                  <RotateCw size={24} />
-                  <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold">
-                    10
-                  </span>
-                </span>
-              </button>
-
-              {skipFeedback !== null && (
-                <div className="pointer-events-none absolute left-1/2 top-[42%] z-40 -translate-x-1/2 rounded-full bg-black/65 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md">
-                  {skipFeedback > 0 ? "+" : ""}
-                  {skipFeedback}s
-                </div>
-              )}
-            </>
+          {skipFeedback !== null && (
+            <div className="pointer-events-none absolute left-1/2 top-[42%] z-40 -translate-x-1/2 rounded-full bg-black/65 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md">
+              {skipFeedback > 0 ? "+" : ""}
+              {skipFeedback}s
+            </div>
           )}
 
           {reelMode && paused && (
@@ -391,7 +359,7 @@ export function XVideoPlayer({
               <button
                 type="button"
                 onClick={toggleMuted}
-                className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md"
+                className="absolute left-4 top-[calc(env(safe-area-inset-top)+0.875rem)] z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md"
                 aria-label={muted ? "Unmute" : "Mute"}
               >
                 {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
