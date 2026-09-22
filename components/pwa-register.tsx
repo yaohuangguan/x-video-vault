@@ -31,10 +31,11 @@ export function PwaRegister() {
   const [installed, setInstalled] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const ios = isIos();
+  const [ios, setIos] = useState(false);
 
   useEffect(() => {
     setInstalled(isStandalone());
+    setIos(isIos());
 
     if ("serviceWorker" in navigator) {
       void navigator.serviceWorker.register("/sw.js", {
