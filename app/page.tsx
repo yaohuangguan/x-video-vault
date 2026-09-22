@@ -84,7 +84,7 @@ export default function Home() {
   const [view, setView] = useState<"all" | "favorites" | "tags">("all");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [type, setType] = useState("all");
-  const [sort, setSort] = useState("newest");
+  const [sort, setSort] = useState("imported");
   const [selected, setSelected] = useState<VaultItem | null>(null);
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
@@ -196,10 +196,6 @@ export default function Home() {
 
       if (view === "favorites" && !next) {
         items = items.filter((entry) => entry.postId !== item.postId);
-      } else {
-        items = [...items].sort(
-          (a, b) => Number(b.isFavorite) - Number(a.isFavorite),
-        );
       }
 
       return {
