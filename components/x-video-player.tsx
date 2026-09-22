@@ -120,7 +120,7 @@ export function XVideoPlayer({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !media || !reelMode) return;
+    if (!video || !media || (!reelMode && !theaterMode)) return;
 
     if (!active) {
       video.pause();
@@ -146,7 +146,7 @@ export function XVideoPlayer({
     };
 
     void start();
-  }, [active, media, muted, reelMode]);
+  }, [active, media, muted, reelMode, theaterMode]);
 
   useEffect(() => {
     if (active) return;
@@ -197,6 +197,23 @@ export function XVideoPlayer({
       skipTimer.current = null;
     }, 650);
   };
+
+  useEffect(() => {
+    if (!theaterMode || !active || !media) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        skipBy(-10);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        skipBy(10);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [active, media, theaterMode]);
 
   const handleSeekPointerDown = (
     event: ReactPointerEvent<HTMLVideoElement>,
@@ -312,7 +329,7 @@ export function XVideoPlayer({
             }
             onLoadedMetadata={(event) => {
               setDuration(event.currentTarget.duration || 0);
-              if (reelMode && active) {
+              if ((reelMode || theaterMode) && active) {
                 void event.currentTarget.play().catch(() => {});
               }
             }}
