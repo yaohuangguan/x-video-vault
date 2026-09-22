@@ -34,6 +34,9 @@ type MediaResponse =
       reason?: string;
     };
 
+const SOUND_PREFERENCE_KEY = "xvv-player-muted";
+const SOUND_PREFERENCE_EVENT = "xvv-player-sound-preference";
+
 export function XVideoPlayer({
   postId,
   url,
@@ -68,10 +71,51 @@ export function XVideoPlayer({
   const [skipFeedback, setSkipFeedback] = useState<number | null>(null);
 
   const shouldLoad = active || preload;
+
+  const rememberMutedPreference = (nextMuted: boolean) => {
+    setMuted(nextMuted);
+    try {
+      window.localStorage.setItem(
+        SOUND_PREFERENCE_KEY,
+        nextMuted ? "true" : "false",
+      );
+      window.dispatchEvent(
+        new CustomEvent(SOUND_PREFERENCE_EVENT, {
+          detail: { muted: nextMuted },
+        }),
+      );
+    } catch {
+      // Playback still works if storage is unavailable.
+    }
+  };
   const progress = useMemo(
     () => (duration > 0 ? Math.min(1, currentTime / duration) : 0),
     [currentTime, duration],
   );
+
+  useEffect(() => {
+    if (!reelMode && !theaterMode) return;
+
+    try {
+      const stored = window.localStorage.getItem(SOUND_PREFERENCE_KEY);
+      if (stored === "true" || stored === "false") {
+        setMuted(stored === "true");
+      }
+    } catch {
+      // Ignore unavailable storage.
+    }
+
+    const syncPreference = (event: Event) => {
+      const detail = (event as CustomEvent<{ muted?: boolean }>).detail;
+      if (typeof detail?.muted === "boolean") {
+        setMuted(detail.muted);
+      }
+    };
+
+    window.addEventListener(SOUND_PREFERENCE_EVENT, syncPreference);
+    return () =>
+      window.removeEventListener(SOUND_PREFERENCE_EVENT, syncPreference);
+  }, [reelMode, theaterMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,7 +177,27 @@ export function XVideoPlayer({
         video.muted = muted;
         await video.play();
         setPaused(false);
+
+        if (!muted) {
+          rememberMutedPreference(false);
+        }
       } catch {
+        let storedPreference: string | null = null;
+        try {
+          storedPreference = window.localStorage.getItem(SOUND_PREFERENCE_KEY);
+        } catch {
+          // Ignore unavailable storage.
+        }
+
+        // Once the user has chosen sound (or sound autoplay already worked),
+        // never silently turn the next video back to muted.
+        if (storedPreference === "false") {
+          video.muted = false;
+          setMuted(false);
+          setPaused(true);
+          return;
+        }
+
         try {
           video.muted = true;
           setMuted(true);
@@ -260,7 +324,9 @@ export function XVideoPlayer({
   const toggleMuted = () => {
     const video = videoRef.current;
     const next = !muted;
-    setMuted(next);
+
+    rememberMutedPreference(next);
+
     if (video) {
       video.muted = next;
       if (active && video.paused) {
