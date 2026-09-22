@@ -338,7 +338,7 @@ export function XVideoPlayer({
                 type="button"
                 onClick={() => skipBy(-10)}
                 className={`absolute left-[18%] top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white/90 backdrop-blur-md transition active:scale-95 ${
-                  reelMode ? "opacity-75" : "opacity-0 hover:opacity-100"
+                  reelMode ? "opacity-75" : "opacity-35 hover:opacity-100"
                 }`}
                 aria-label="Rewind 10 seconds"
               >
@@ -354,7 +354,7 @@ export function XVideoPlayer({
                 type="button"
                 onClick={() => skipBy(10)}
                 className={`absolute right-[18%] top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white/90 backdrop-blur-md transition active:scale-95 ${
-                  reelMode ? "opacity-75" : "opacity-0 hover:opacity-100"
+                  reelMode ? "opacity-75" : "opacity-35 hover:opacity-100"
                 }`}
                 aria-label="Forward 10 seconds"
               >
