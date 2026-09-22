@@ -195,7 +195,7 @@ export function MobileReelViewer({
 
   return (
     <div className="fixed inset-0 z-50 bg-black lg:hidden">
-      <div className="pointer-events-none fixed inset-x-0 top-[max(.9rem,env(safe-area-inset-top))] z-[60] flex items-center justify-center">
+      <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.875rem)] z-[60] flex items-center justify-center">
         <div className="rounded-full bg-black/30 px-3 py-1.5 text-xs font-medium tracking-wide text-white/70 backdrop-blur-md">
           X Video Vault
         </div>
@@ -203,7 +203,7 @@ export function MobileReelViewer({
 
       <button
         onClick={onClose}
-        className="fixed right-4 top-[max(.85rem,env(safe-area-inset-top))] z-[70] flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md"
+        className="fixed right-4 top-[calc(env(safe-area-inset-top)+0.875rem)] z-[70] flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md"
         aria-label="Close viewer"
       >
         <X size={21} />
