@@ -59,7 +59,7 @@ export async function GET(request: Request) {
   const favorite = url.searchParams.get("favorite") === "true";
   const tag = url.searchParams.get("tag")?.trim();
   const type = url.searchParams.get("type")?.trim();
-  const sort = url.searchParams.get("sort") || "newest";
+  const sort = url.searchParams.get("sort") || "imported";
 
   const conditions: SQL[] = [];
   if (query) {
@@ -103,7 +103,7 @@ export async function GET(request: Request) {
     .innerJoin(xPosts, eq(media.postId, xPosts.id))
     .leftJoin(authors, eq(xPosts.authorId, authors.id))
     .where(where)
-    .orderBy(desc(xPosts.isFavorite), order)
+    .orderBy(order)
     .limit(limit)
     .offset(offset)
     .all();
