@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
@@ -6,10 +6,28 @@ export const metadata: Metadata = {
   title: "X Video Vault",
   description: "A private, zero-API-cost library for video Posts saved from X.",
   manifest: "/manifest.webmanifest",
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+  applicationName: "X Video Vault",
+  appleWebApp: {
+    capable: true,
+    title: "Video Vault",
+    statusBarStyle: "black-translucent",
   },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: "/pwa-icon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/pwa-icon.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#080a0c",
+  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
