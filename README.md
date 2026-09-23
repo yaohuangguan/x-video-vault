@@ -1,5 +1,11 @@
 # X Video Vault
 
+## About
+
+X Video Vault is a private, self-hosted library for collecting and revisiting video posts from X without relying on the paid X API. A lightweight Chrome/Edge extension captures video posts already loaded in your signed-in X session, while the Vault stores searchable metadata, tags, favorites, and watch history in Cloudflare D1.
+
+The project is designed around a simple principle: keep the user's X credentials and cookies out of the application. Media is not re-hosted by default, and the same Vault can be used from desktop or mobile as a PWA for a swipe-first viewing experience.
+
 一个不使用付费 X API 的私人视频收藏库：
 
 - 电脑浏览器扩展读取你已经登录的 X Likes 页面中已加载的视频/GIF 帖子。
