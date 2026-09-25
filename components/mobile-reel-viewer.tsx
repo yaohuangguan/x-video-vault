@@ -59,7 +59,7 @@ function ReelSlide({
       ([entry]) => setNearby(entry.isIntersecting),
       {
         threshold: 0.01,
-        rootMargin: "100% 0px 100% 0px",
+        rootMargin: "200% 0px 200% 0px",
       },
     );
 
@@ -82,9 +82,15 @@ function ReelSlide({
     <section
       ref={section}
       data-post-id={item.postId}
-      className="relative h-dvh snap-start snap-always overflow-hidden bg-black"
+      className={`relative h-dvh snap-start snap-always overflow-hidden bg-black transition-opacity duration-300 ${
+        active ? "opacity-100" : "opacity-90"
+      }`}
     >
-      <div className="absolute inset-0">
+      <div
+        className={`absolute inset-0 transition-transform duration-500 ease-out ${
+          active ? "scale-100" : "scale-[0.995]"
+        }`}
+      >
         <XVideoPlayer
           postId={item.postId}
           url={item.originalUrl}
@@ -178,6 +184,9 @@ export function MobileReelViewer({
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const order = useRef(items.map((item) => item.postId));
+  const [activeIndex, setActiveIndex] = useState(
+    Math.max(0, items.findIndex((item) => item.postId === initialId)),
+  );
 
   const orderedItems = order.current
     .map((postId) => items.find((item) => item.postId === postId))
@@ -195,15 +204,15 @@ export function MobileReelViewer({
 
   return (
     <div className="fixed inset-0 z-50 bg-black lg:hidden">
-      <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.875rem)] z-[60] flex items-center justify-center">
-        <div className="rounded-full bg-black/30 px-3 py-1.5 text-xs font-medium tracking-wide text-white/70 backdrop-blur-md">
-          X Video Vault
+      <div className="immersive-safe-top pointer-events-none fixed inset-x-0 z-[60] flex items-center justify-center">
+        <div className="rounded-full bg-black/25 px-3 py-1.5 text-[11px] font-medium tracking-[0.08em] text-white/65 backdrop-blur-md">
+          {activeIndex + 1} / {orderedItems.length}
         </div>
       </div>
 
       <button
         onClick={onClose}
-        className="fixed right-4 top-[calc(env(safe-area-inset-top)+0.875rem)] z-[70] flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md"
+        className="immersive-safe-top fixed right-4 z-[70] flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white shadow-lg backdrop-blur-md active:scale-95"
         aria-label="Close viewer"
       >
         <X size={21} />
@@ -211,14 +220,17 @@ export function MobileReelViewer({
 
       <div
         ref={scroller}
-        className="h-dvh snap-y snap-mandatory overflow-y-auto overscroll-contain scrollbar-none"
+        className="immersive-reel h-dvh snap-y snap-mandatory overflow-y-auto overscroll-contain scrollbar-none"
       >
-        {orderedItems.map((item) => (
+        {orderedItems.map((item, index) => (
           <ReelSlide
             key={item.postId}
             item={item}
             onFavorite={() => onFavorite(item)}
-            onActive={() => onViewed(item)}
+            onActive={() => {
+              setActiveIndex(index);
+              onViewed(item);
+            }}
           />
         ))}
       </div>
