@@ -92,7 +92,7 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
   scroll-snap-stop: always;
 }
 
-@media (display-mode: standalone) {
+@media (display-mode: standalone) and (max-width: 900px) {
   .app-shell-header {
     padding-top: max(env(safe-area-inset-top), 2.75rem);
   }
