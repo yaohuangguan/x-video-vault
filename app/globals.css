@@ -69,3 +69,35 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .reel-progress:focus {
   outline: none;
 }
+
+
+/* PWA / immersive viewing helpers */
+.app-shell-header {
+  padding-top: env(safe-area-inset-top);
+}
+
+.immersive-safe-top {
+  top: max(4.5rem, calc(env(safe-area-inset-top) + 1rem));
+}
+
+.immersive-reel {
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  background: #000;
+}
+
+.immersive-reel > section {
+  scroll-snap-stop: always;
+}
+
+@media (display-mode: standalone) {
+  .app-shell-header {
+    padding-top: max(env(safe-area-inset-top), 2.75rem);
+  }
+
+  body {
+    overscroll-behavior: none;
+  }
+}
