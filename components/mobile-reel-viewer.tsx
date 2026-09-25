@@ -43,7 +43,6 @@ function ReelSlide({
   const section = useRef<HTMLElement>(null);
   const [active, setActive] = useState(false);
   const [nearby, setNearby] = useState(false);
-  const reported = useRef(false);
 
   useEffect(() => {
     const node = section.current;
@@ -73,8 +72,7 @@ function ReelSlide({
   }, []);
 
   useEffect(() => {
-    if (!active || reported.current) return;
-    reported.current = true;
+    if (!active) return;
     onActive();
   }, [active, onActive]);
 
