@@ -575,7 +575,7 @@ function Header({
   onSettings: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#080a0c]/92 backdrop-blur-xl">
+    <header className="app-shell-header sticky top-0 z-30 border-b border-white/[0.06] bg-[#080a0c]/88 backdrop-blur-2xl">
       <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-3 sm:h-[72px] sm:px-7">
         <Button
           variant="ghost"
@@ -757,7 +757,7 @@ function VideoCard({
     <article className="group min-w-0">
       <button
         onClick={onOpen}
-        className="relative block aspect-[4/5] w-full overflow-hidden rounded-2xl border border-white/[0.07] bg-[#101419] text-left"
+        className="relative block aspect-[4/5] w-full overflow-hidden rounded-2xl border border-white/[0.07] bg-[#101419] text-left shadow-[0_18px_60px_rgba(0,0,0,.18)] transition duration-300 hover:-translate-y-0.5 hover:border-white/[0.12]"
       >
         {item.media.previewImageUrl ? (
           <Image
