@@ -442,7 +442,7 @@ export function XVideoPlayer({
               <button
                 type="button"
                 onClick={toggleMuted}
-                className="absolute left-4 top-[calc(env(safe-area-inset-top)+0.875rem)] z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md"
+                className="immersive-safe-top absolute left-4 z-50 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white shadow-lg backdrop-blur-md active:scale-95"
                 aria-label={muted ? "Unmute" : "Mute"}
               >
                 {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
